@@ -117,7 +117,9 @@ func vote(webUrl string, shortcode string) error {
 	url := fmt.Sprintf("%s/api/vote?choice=%s", webUrl, shortcode)
 
 	client := &http.Client{
-		Transport: &ochttp.Transport{},
+		Transport: &ochttp.Transport{
+			Propagation: &tracecontext.HTTPFormat{},
+		},
 	}
 
 	resp, err := client.Get(url)

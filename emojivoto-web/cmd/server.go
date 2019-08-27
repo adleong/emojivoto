@@ -37,9 +37,6 @@ func main() {
 		log.Fatalf("Failed to create ocagent-exporter: %v", err)
 	}
 	trace.RegisterExporter(oce)
-	trace.ApplyConfig(trace.Config{
-		DefaultSampler: trace.AlwaysSample(),
-	})
 
 	votingSvcConn := openGrpcClientConnection(votingsvcHost)
 	votingClient := pb.NewVotingServiceClient(votingSvcConn)

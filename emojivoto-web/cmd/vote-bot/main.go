@@ -13,7 +13,6 @@ import (
 	"go.opencensus.io/plugin/ochttp"
 	"contrib.go.opencensus.io/exporter/ocagent"
 	"go.opencensus.io/trace"
-	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
 )
 
 // VoteBot votes for emoji! :ballot_box_with_check:
@@ -82,9 +81,7 @@ func shortcodes(webUrl string) ([]string, error) {
 	url := fmt.Sprintf("%s/api/list", webUrl)
 
 	client := &http.Client{
-		Transport: &ochttp.Transport{
-			Propagation: &tracecontext.HTTPFormat{},
-		},
+		Transport: &ochttp.Transport{},
 	}
 
 	resp, err := client.Get(url)

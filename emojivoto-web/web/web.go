@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"strconv"
 	"go.opencensus.io/plugin/ochttp"
-	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
 
 	pb "github.com/buoyantio/emojivoto/emojivoto-web/gen/proto"
 )
@@ -378,7 +377,6 @@ func writeError(err error, w http.ResponseWriter, r *http.Request, status int) {
 
 func handle(path string, h func (w http.ResponseWriter, r *http.Request)) {
 	http.Handle(path, &ochttp.Handler {
-		Propagation: &tracecontext.HTTPFormat{},
 		Handler: http.HandlerFunc(h),
 	})
 }

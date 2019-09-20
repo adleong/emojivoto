@@ -1,0 +1,12 @@
+apiVersion: split.smi-spec.io/v1alpha1
+kind: TrafficSplit
+metadata:
+  name: error-split
+  namespace: emojivoto
+spec:
+  service: emoji-svc
+  backends:
+  - service: emoij-svc
+    weight: 900m
+  - service: voting-svc
+    weight: 100m

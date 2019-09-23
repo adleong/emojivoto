@@ -46,8 +46,8 @@ spec:
         - name: GRPC_PORT
           value: "8080"
         - name: OC_AGENT_HOST
-          value: "oc-agent.tracing:55678"
-        image: buoyantio/emojivoto-emoji-svc:git-254451a
+          value: "oc-collector.tracing:55678"
+        image: buoyantio/emojivoto-emoji-svc:v8-tracing
         name: emoji-svc
         ports:
         - containerPort: 8080
@@ -95,8 +95,8 @@ spec:
         - name: GRPC_PORT
           value: "8080"
         - name: OC_AGENT_HOST
-          value: "oc-agent.tracing:55678"
-        image: buoyantio/emojivoto-voting-svc:git-254451a
+          value: "oc-collector.tracing:55678"
+        image: buoyantio/emojivoto-voting-svc:v8-tracing
         name: voting-svc
         ports:
         - containerPort: 8080
@@ -144,14 +144,14 @@ spec:
         - name: WEB_PORT
           value: "80"
         - name: OC_AGENT_HOST
-          value: "oc-agent.tracing:55678"
+          value: "oc-collector.tracing:55678"
         - name: EMOJISVC_HOST
           value: emoji-svc.emojivoto:8080
         - name: VOTINGSVC_HOST
           value: voting-svc.emojivoto:8080
         - name: INDEX_BUNDLE
           value: dist/index_bundle.js
-        image: buoyantio/emojivoto-web:git-254451a
+        image: buoyantio/emojivoto-web:v8-tracing
         name: web-svc
         ports:
         - containerPort: 80
@@ -198,7 +198,7 @@ spec:
         - emojivoto-vote-bot
         env:
         - name: WEB_HOST
-          value: web-svc.emojivoto:80
+          value: nginx-ingress.emojivoto:80
         image: buoyantio/emojivoto-web:v8
         name: vote-bot
         resources:

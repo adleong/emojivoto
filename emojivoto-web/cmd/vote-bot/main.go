@@ -10,9 +10,6 @@ import (
 	"net/url"
 	"os"
 	"time"
-	"go.opencensus.io/plugin/ochttp"
-	"contrib.go.opencensus.io/exporter/ocagent"
-	"go.opencensus.io/trace"
 )
 
 // VoteBot votes for emoji! :ballot_box_with_check:
@@ -28,19 +25,6 @@ type emoji struct {
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
-
-	oce, err := ocagent.NewExporter(
-	ocagent.WithInsecure(),
-	ocagent.WithReconnectionPeriod(5 * time.Second),
-	ocagent.WithAddress(os.Getenv("OC_AGENT_HOST")),
-	ocagent.WithServiceName("vote-bot"))
-	if err != nil {
-		log.Fatalf("Failed to create ocagent-exporter: %v", err)
-	}
-	trace.RegisterExporter(oce)
-	trace.ApplyConfig(trace.Config{
-		DefaultSampler: trace.ProbabilitySampler(0.5),
-	})
 
 	webHost := os.Getenv("WEB_HOST")
 	if webHost == "" {
@@ -80,11 +64,7 @@ func main() {
 func shortcodes(webUrl string) ([]string, error) {
 	url := fmt.Sprintf("%s/api/list", webUrl)
 
-	client := &http.Client{
-		Transport: &ochttp.Transport{},
-	}
-
-	resp, err := client.Get(url)
+	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
 	}
@@ -113,11 +93,7 @@ func vote(webUrl string, shortcode string) error {
 	fmt.Printf("✔ Voting for %s\n", shortcode)
 	url := fmt.Sprintf("%s/api/vote?choice=%s", webUrl, shortcode)
 
-	client := &http.Client{
-		Transport: &ochttp.Transport{},
-	}
-
-	resp, err := client.Get(url)
+	resp, err := http.Get(url)
 	if err != nil {
 		return err
 	}

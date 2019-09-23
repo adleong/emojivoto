@@ -1,151 +1,63 @@
-# Emoji.voto
+# Distributed Tracing with Emoji.voto
 
-A microservice application that allows users to vote for their favorite emoji,
-and tracks votes received on a leaderboard. May the best emoji win.
+This is a fork of the [Emoji.voto](https://github.com/BuoyantIO/emojivoto)
+project with distributed tracing instrumentation built in.  This is intended to
+serve as a reference architecture for how to add distributed tracing to an
+application.
 
-The application is composed of the following 3 services:
+For more information about Emoji.voto and for instructions on how to build and
+run the project, see [the upstream
+README](https://github.com/BuoyantIO/emojivoto/blob/master/README.md).
 
-* [emojivoto-web](emojivoto-web/): Web frontend and REST API
-* [emojivoto-emoji-svc](emojivoto-emoji-svc/): gRPC API for finding and listing emoji
-* [emojivoto-voting-svc](emojivoto-voting-svc/): gRPC API for voting and leaderboard
+To see the changes that were necessary to instrument Emoji.voto, see [the
+diff](https://github.com/BuoyantIO/emojivoto/compare/master...adleong:master).
 
-![Emojivoto Topology](assets/emojivoto-topology.png "Emojivoto Topology")
-
-## Running
-
-### In Minikube
-
-Deploy the application to Minikube using the Linkerd2 service mesh.
-
-1. Install the `linkerd` CLI
+## Quick Start
 
 ```
-curl https://run.linkerd.io/install | sh
+kubectl apply -f tracing.yml
+kubectl apply -f emojivoto.yml
+kubectl apply -f ingress.yml
+kubectl -n tracing port-forward deploy/jaeger 16686 &
+open http://localhost:16686
 ```
 
-2. Install Linkerd2
+## Architecture
 
-```
-linkerd install | kubectl apply -f -
-```
+We use the [OpenCensus Service
+collector](https://opencensus.io/service/components/collector/) to collect
+traces and [Jaeger](https://www.jaegertracing.io/) to store and display them. 
+Each Emoji.voto service is instrumented with the [OpenCensus Go
+client](https://github.com/census-instrumentation/opencensus-go) to emit trace
+data to the collector.  [Nginx](https://www.nginx.com/) acts as an ingress and
+makes all sampling decisions about when to initiate a trace (in this example we
+use a 50% sample rate.)  HTTP communication uses the [Zipkin trace propagation
+headers](https://github.com/openzipkin/b3-propagation) and gRPC communication
+uses the [gRPC trace
+metadata](https://github.com/census-instrumentation/opencensus-specs/blob/master/trace/gRPC.md).
 
-3. View the dashboard!
+### Nginx
 
-```
-linkerd dashboard
-```
+Nginx is deployed as an ingress controller.  For each request it receives, it
+has a 50% change of sampling that trace.  For any traces that it samples, it
+sends span data to the OpenCensus collector using the Zipkin reporting protocol
+and sets the `X-b3-*` headers on the request to mark that downstream services
+should sample it as well in order to produce a full trace.
 
-4. Inject, Deploy, and Enjoy
+### Emoji.voto
 
-```
-linkerd inject emojivoto.yml | kubectl apply -f -
-```
+All Emoji.voto services use the OpenCensus Go client to propagate trace context
+from the incoming requests to the outgoing requests.  They also honor the
+sampling decision made by the ingress.  If a trace should be sampled, they
+report span data to the OpenCensus collector using the OpenCensus agent
+protocol.
 
-5. Use the app!
+### OpenCensus Collector
 
-```
-minikube -n emojivoto service web-svc
-```
+The collector is an aggregation and translation layer which receives span data
+from Nginx and the Emoji.voto services and forwards that data to Jaeger.
 
-### In docker-compose
+### Jaeger
 
-It's also possible to run the app with docker-compose (without Linkerd2).
-
-Build and run:
-
-```
-make deploy-to-docker-compose
-```
-
-The web app will be running on port 8080 of your docker host.
-
-### Generating some traffic
-
-The `VoteBot` service can generate some traffic for you. It votes on emoji
-"randomly" as follows:
-- It votes for :doughnut: 15% of the time.
-- When not voting for :doughnut:, it picks an emoji at random
-
-If you're running the app using the instructions above, the VoteBot will have
-been deployed and will start sending traffic to the vote endpoint.
-
-If you'd like to run the bot manually:
-```
-export WEB_HOST=localhost:8080 # replace with your web location
-go run emojivoto-web/cmd/vote-bot/main.go
-```
-
-## Releasing a new version
-
-To update the docker images:
-1. Update the tag name in `common.mk`
-2. Update the base image tags in `Makefile` and `Dockerfile`
-3. Build base docker image `make build-base-docker-image`
-4. Build docker images `make build`
-5. Push the docker images to hub.docker.com
-```bash
-docker login
-docker push buoyantio/emojivoto-svc-base:v8
-docker push buoyantio/emojivoto-emoji-svc:v8
-docker push buoyantio/emojivoto-voting-svc:v8
-docker push buoyantio/emojivoto-web:v8
-```
-6. Update `emojivoto.yml`, `docker-compose.yml`
-
-
-## Local Development
-
-### Emojivoto webapp
-
-This app is written with React and bundled with webpack.
-Use the following to run the emojivoto go services and develop on the frontend.
-
-Set up proto files, build apps
-```
-make build
-```
-
-Start the voting service
-```
-GRPC_PORT=8081 go run emojivoto-voting-svc/cmd/server.go
-```
-
-[In a separate terminal window] Start the emoji service
-```
-GRPC_PORT=8082 go run emojivoto-emoji-svc/cmd/server.go
-```
-
-[In a separate terminal window] Bundle the frontend assets
-```
-cd emojivoto-web/webapp
-yarn install
-yarn webpack # one time asset-bundling OR
-yarn webpack-dev-server --port 8083 # bundle/serve reloading assets
-```
-
-[In a separate terminal window] Start the web service
-```
-export WEB_PORT=8080
-export VOTINGSVC_HOST=localhost:8081
-export EMOJISVC_HOST=localhost:8082
-
-# if you ran yarn webpack
-export INDEX_BUNDLE=emojivoto-web/webapp/dist/index_bundle.js
-
-# if you ran yarn webpack-dev-server
-export WEBPACK_DEV_SERVER=http://localhost:8083
-
-# start the webserver
-go run emojivoto-web/cmd/server.go
-```
-
-[Optional] Start the vote bot for automatic traffic generation.
-```
-export WEB_HOST=localhost:8080
-go run emojivoto-web/cmd/vote-bot/main.go
-```
-
-View emojivoto
-```
-open http://localhost:8080
-```
+Jaeger receives traces from the OpenCensus collector, stores them, and displays
+them in a web UI.
